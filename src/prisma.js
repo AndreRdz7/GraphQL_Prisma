@@ -5,6 +5,25 @@ const prisma = new Prisma({
   endpoint: "http://localhost:4466"
 });
 
+const createPostForUser = (authorId, data) => {
+  const post = await prisma.mutation.createPost({
+    data: {
+      ...data,
+      author: {
+        connect:{
+          id: authorId
+        }
+      }
+    }
+  }, '{ id }')
+  const user = await prisma.query.user({
+    where: {
+      id: authorId
+    }
+  }, '{ id name email posts { id title published }}')
+  return user;
+}
+
 // prisma.query.users(null, "{ id name email }").then(data => {
 //   console.log(JSON.stringify(data, undefined, 2));
 // });
