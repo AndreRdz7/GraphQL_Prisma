@@ -1,53 +1,65 @@
 import { Prisma } from "prisma-binding";
+import { json } from "body-parser";
 
 const prisma = new Prisma({
   typeDefs: "src/generated/prisma.graphql",
   endpoint: "http://localhost:4466"
 });
 
-const createPostForUser = (authorId, data) => {
-  const post = await prisma.mutation.createPost({
-    data: {
-      ...data,
-      author: {
-        connect:{
-          id: authorId
+const createPostForUser = async (authorId, data) => {
+  const userExists = await prisma.exists.User({
+    id: authorId
+  });
+
+  if (!userExists) {
+    throw new Error("User not found");
+  }
+
+  const post = await prisma.mutation.createPost(
+    {
+      data: {
+        ...data,
+        author: {
+          connect: {
+            id: authorId
+          }
         }
       }
-    }
-  }, '{ id }')
-  const user = await prisma.query.user({
-    where: {
-      id: authorId
-    }
-  }, '{ id name email posts { id title published }}')
-  return user;
-}
+    },
+    "{ author { id name email posts { id title published }} }"
+  );
 
-// prisma.query.users(null, "{ id name email }").then(data => {
-//   console.log(JSON.stringify(data, undefined, 2));
-// });
+  return post.author;
+};
 
-// prisma.mutation
-//   .createPost(
-//     {
-//       data: {
-//         title: "hello",
-//         body: "is it me you are looking for",
-//         published: true,
-//         author: {
-//           connect: {
-//             id: "ck6cfz83l003i0754dh9sgdnd"
-//           }
-//         }
-//       }
-//     },
-//     "{id title body published}"
-//   )
-//   .then(data => {
-//     console.log(JSON.stringify(data, undefined, 2 ));
-//     return prisma.query.users(null, "{id name posts {id title}}");
-//   })
-//   .then(data => {
-//     console.log(JSON.stringify(data, undefined, 2));
-//   });
+const updatePostForUser = async (postId, data) => {
+  const postExists = await prisma.exists.Post({ id: postId });
+
+  if (!postExists) {
+    throw new Error("Post not found");
+  }
+
+  const post = await prisma.mutation.updatePost(
+    {
+      where: {
+        id: postId
+      },
+      data
+    },
+    "{ author { id name email posts { id title published }} }"
+  );
+
+  return post.author;
+};
+
+createPostForUser("id", {
+  title: "This is the title",
+  body: "yeah buddy",
+  published: "true"
+})
+  .then(user => {
+    console.log(JSON.stringify(user, undefined, 2));
+  })
+  .catch(error => {
+    console.log(error);
+  });
